@@ -80,8 +80,17 @@ function TN:CreateDetailKOSRow(parent, index)
         GameTooltip:AddLine(self.data.guild, C.green[1], C.green[2], C.green[3])
       end
       GameTooltip:AddLine("等级" .. (self.data.lv or "??") .. " -职业：" .. (self.data.cls or "未知"), C.text2[1], C.text2[2], C.text2[3])
-      GameTooltip:AddLine("胜: " .. (self.data.win or 0) .. "  负: " .. (self.data.loss or 0), C.text[1], C.text[2], C.text[3])
-      GameTooltip:AddLine((self.data.last or "--") .. " 在 " .. (self.data.zone or "未知区域") .. " 遇到", C.text3[1], C.text3[2], C.text3[3])
+      local tw, tl, tm = TN:LookupHistoryWL(self.data.name)
+      GameTooltip:AddLine("胜: " .. tw .. "  负: " .. tl, C.text[1], C.text[2], C.text[3])
+      local agoText = "--"
+      if type(tm) == "number" and tm > 0 then
+        local dt = time() - tm
+        if dt < 60 then agoText = math.floor(dt) .. "s"
+        elseif dt < 3600 then agoText = math.floor(dt / 60) .. "m"
+        elseif dt < 86400 then agoText = math.floor(dt / 3600) .. "h"
+        else agoText = math.floor(dt / 86400) .. "d" end
+      end
+      GameTooltip:AddLine(agoText .. " 在 " .. (self.data.zone or "未知区域") .. " 遇到", C.text3[1], C.text3[2], C.text3[3])
       GameTooltip:Show()
     end
   end)
@@ -104,11 +113,16 @@ end
 
 -- 从总战绩（对手统计）查询某玩家的历史胜负，供新增死刑名单时回填
 function TN:LookupHistoryWL(name)
-  if not name then return 0, 0 end
+  if not name then return 0, 0, nil end
   local mu = (self.db and self.db.char and self.db.char.matchups) or {}
   local m = mu[name]
-  if m then return m.win or 0, m.loss or 0 end
-  return 0, 0
+  if m then return m.win or 0, m.loss or 0, m.last end
+  local short = name:match("^([^%-]+)")
+  if short and short ~= name then
+    m = mu[short]
+    if m then return m.win or 0, m.loss or 0, m.last end
+  end
+  return 0, 0, nil
 end
 
 function TN:GetFilteredDetailKOS()
@@ -129,11 +143,14 @@ function TN:GetFilteredDetailKOS()
     end
     local av, bv
     if sortKey == "win" then
-      av, bv = a.data.win or 0, b.data.win or 0
+      av, bv = self:LookupHistoryWL(a.data.name)
+      bv = select(2, self:LookupHistoryWL(b.data.name))
     elseif sortKey == "loss" then
-      av, bv = a.data.loss or 0, b.data.loss or 0
+      av = select(2, self:LookupHistoryWL(a.data.name))
+      bv = select(2, self:LookupHistoryWL(b.data.name))
     else
-      av, bv = timeValue(a.data.last), timeValue(b.data.last)
+      av = select(3, self:LookupHistoryWL(a.data.name)) or 0
+      bv = select(3, self:LookupHistoryWL(b.data.name)) or 0
     end
     if av == bv then
       return tostring(a.data.name or "") < tostring(b.data.name or "")
@@ -162,8 +179,9 @@ function TN:SelectDetailKOS(index)
   if self.detail then
     if self.detail.kosNameInput then self.detail.kosNameInput:SetText(data.name or "") end
     if self.detail.kosCrimeInput then self.detail.kosCrimeInput:SetText(data.crime or "") end
-    if self.detail.kosWinInput then self.detail.kosWinInput:SetText(tostring(data.win or 0)) end
-    if self.detail.kosLossInput then self.detail.kosLossInput:SetText(tostring(data.loss or 0)) end
+    local w, l = self:LookupHistoryWL(data.name)
+    if self.detail.kosWinInput then self.detail.kosWinInput:SetText(tostring(w)) end
+    if self.detail.kosLossInput then self.detail.kosLossInput:SetText(tostring(l)) end
     if self.detail.kosTimeInput then self.detail.kosTimeInput:SetText(data.last or "") end
   end
   self:UpdateDetailHighRisk()
@@ -251,12 +269,12 @@ function TN:UpdateDetailHighRisk()
       row.class:SetText(classText(data.cls))
       setColor(row.class, classColor(data.cls))
       row.crime:SetText(utf8Truncate(data.crime or "", 13))
-      row.win:SetText(tostring(data.win or 0))
-      row.loss:SetText(tostring(data.loss or 0))
+      local w, l, ml = self:LookupHistoryWL(data.name)
+      row.win:SetText(tostring(w))
+      row.loss:SetText(tostring(l))
       local lastText = "--"
-      local ts = data.last
-      if ts and type(ts) == "number" and ts > 0 and time then
-        local dt = time() - ts
+      if type(ml) == "number" and ml > 0 then
+        local dt = time() - ml
         if dt < 60 then lastText = math.floor(dt) .. "s"
         elseif dt < 3600 then lastText = math.floor(dt / 60) .. "m"
         elseif dt < 86400 then lastText = math.floor(dt / 3600) .. "h"
@@ -303,7 +321,7 @@ function TN:RenderDetailHighRisk()
   self:CreateDetailTableHeader(tableCard, {
     { t = "玩家名", w = 128 }, { t = "公会", w = 80 }, { t = "等级", w = 36 }, { t = "职业", w = 28 },
     { t = "原因", w = 240 }, { t = "胜", w = 44, sortKey = "win" }, { t = "负", w = 44, sortKey = "loss" },
-    { t = "时间", w = 80, sortKey = "time" },
+    { t = "最近", w = 80, sortKey = "time" },
   }, -58)
   detail.kosScroll = self:CreateDetailScroll(tableCard, 12, -94, -12, 42)
   detail.kosContent = CreateFrame("Frame", nil, detail.kosScroll)

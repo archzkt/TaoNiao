@@ -247,10 +247,7 @@ function TN:LayoutPanelHeight()
   if not self.hud or not self.list then return end
   local controlHeight = self.db.profile.collapsed and HUD_COLLAPSED_HEIGHT or (self.hudExpandedHeight or HUD_EXPANDED_HEIGHT)
   local listHeight = self.list:IsShown() and (self.list:GetHeight() or LIST_MIN_HEIGHT) or 0
-  local height = controlHeight + listHeight + GROUP_GAP
-  if math.abs((self.hud:GetHeight() or 0) - height) > 0.5 then
-    self.hud:SetHeight(height)
-  end
+  self.hud:SetHeight(controlHeight + listHeight + GROUP_GAP)
   if self.list:IsShown() then
     self.list:ClearAllPoints()
     self.list:SetPoint("TOPLEFT", self.hud, "TOPLEFT", 0, -controlHeight - GROUP_GAP)

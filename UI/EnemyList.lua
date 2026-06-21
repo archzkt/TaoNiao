@@ -262,8 +262,9 @@ function TN:ShowEnemyTooltip(row, show)
     GameTooltip:AddLine(guild, C.green[1], C.green[2], C.green[3])
   end
   GameTooltip:AddLine("等级" .. tostring(level) .. " -职业：" .. (class.name or "未知"), C.text2[1], C.text2[2], C.text2[3])
-  local wins = enemy.myWins or 0
-  local losses = enemy.myLosses or 0
+  local wins, losses = enemy.myWins or 0, enemy.myLosses or 0
+  local mu = (TN.db and TN.db.char and TN.db.char.matchups or {})[enemy.name]
+  if mu then wins = mu.win or wins; losses = mu.loss or losses end
   GameTooltip:AddLine("胜: " .. wins .. "  负: " .. losses, C.text[1], C.text[2], C.text[3])
   local ago = formatSeenAgo(enemy.age)
   GameTooltip:AddLine(ago .. " 在 " .. (GetZoneText and GetZoneText() or "未知区域") .. " 遇到", C.text3[1], C.text3[2], C.text3[3])

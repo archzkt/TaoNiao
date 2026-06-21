@@ -16,6 +16,15 @@ local function isHostilePlayer(flags)
   return hostile and player
 end
 
+-- 敌对玩家或玩家控制单位（含猎人宝宝、术士宠物等）
+local function isHostilePlayerOrPet(flags)
+  if not flags then return false end
+  local hostile = bit_band(flags, COMBATLOG_OBJECT_REACTION_HOSTILE or 0x40) > 0
+  local player = bit_band(flags, COMBATLOG_OBJECT_TYPE_PLAYER or 0x400) > 0
+  local pet = bit_band(flags, 0x1000) > 0  -- COMBATLOG_OBJECT_CONTROL_PLAYER
+  return hostile and (player or pet)
+end
+
 local function normalizeName(name)
   if not name then return nil end
   return name:gsub(" %- ", "-")
@@ -74,8 +83,8 @@ function TN:CombatLogEvent()
     local _, classFile = getGuidPlayerInfo(destGUID)
     self:TrackFriendly(destGUID, destName, classFile)
   end
-  -- 记录最后攻击者（对齐 Spy：PLAYER_DEAD 时用）
-  if destGUID == self.playerGUID and sourceGUID and sourceName then
+  -- 记录最后攻击者（敌对玩家及宠物，排除 NPC）
+  if destGUID == self.playerGUID and sourceGUID and sourceName and isHostilePlayerOrPet(sourceFlags) then
     self._lastAttacker = sourceName
     self._lastAttackerGUID = sourceGUID
     self._lastAttackTime = GetTime()
@@ -85,12 +94,17 @@ function TN:CombatLogEvent()
     local now = GetTime()
     if enemy and ((now - (enemy.lastStealthToast or 0)) > 8) then
       enemy.lastStealthToast = now
-      local kind = enemy.isKOS and "rival" or "stealth"
+      local isKOS = enemy.isKOS
+      if not isKOS and self.GetDetailKOSData then
+        for _, row in ipairs(self:GetDetailKOSData()) do
+          if row.name == enemy.name then isKOS = true; break end
+        end
+      end
+      local kind = isKOS and "rival" or "stealth"
       local classInfo = self.classInfo[enemy.classFile or "UNKNOWN"]
       local className = classInfo and classInfo.name or "未知"
       local lvText = (enemy.level and type(enemy.level) == "number") and (enemy.level .. "级 · ") or ""
       self:PushToast(kind, enemy.name, lvText .. className, spellName or "潜行", classInfo and classInfo.color)
-      self:AnnounceStealth(enemy)
       self:AnnounceStealth(enemy)
     end
   end
@@ -336,6 +350,22 @@ function TN:TouchEnemy(guid, name, level, classFile, reason, guild, unit)
   -- 首次发现敌人：触发自动通报（具体玩家，对齐 Spy）
   if isNew then
     self:AnnounceEnemy(enemy)
+    -- 必杀目标首次出现弹 toast（30s 冷却防刷屏）
+    if not enemy._lastKosToast or now - enemy._lastKosToast > 30 then
+      local isKOS = enemy.isKOS
+      if not isKOS and self.GetDetailKOSData then
+        for _, row in ipairs(self:GetDetailKOSData()) do
+          if row.name == enemy.name then isKOS = true; break end
+        end
+      end
+      if isKOS then
+        enemy._lastKosToast = now
+        local classInfo = self.classInfo[enemy.classFile or "UNKNOWN"]
+        local className = classInfo and classInfo.name or "未知"
+        local lvText = (enemy.level and type(enemy.level) == "number") and (enemy.level .. "级 · ") or ""
+        self:PushToast("rival", enemy.name, lvText .. className, "必杀目标出现", classInfo and classInfo.color)
+      end
+    end
   end
   self:MarkDirty()
 end

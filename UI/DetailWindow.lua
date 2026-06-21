@@ -9,7 +9,6 @@
 local TN = TaoNiao
 local Theme = TN.Theme
 local C = Theme.C
-local TONE = Theme.TONE
 local rgba = Theme.rgba
 local setColor = Theme.setColor
 local setShown = Theme.setShown
@@ -521,43 +520,6 @@ function TN:RenderDetailSettings()
     createToggle(label, function() return tf[kind] ~= false end, function(v) tf[kind] = v end)
   end
   y = y - 4
-  addDivider()
-  -- Toast 测试
-  local testRow = CreateFrame("Frame", nil, content)
-  testRow:SetPoint("TOPLEFT", 4, y)
-  testRow:SetPoint("TOPRIGHT", -4, y)
-  testRow:SetHeight(34)
-  local testLabel = createFont(testRow, 13, C.text2, "", "medium")
-  testLabel:SetPoint("LEFT", 0, 0)
-  testLabel:SetText("测试")
-  local testKinds = {
-    {"潜行","stealth",TONE.yellow, "暗影刺客", "60级 · 盗贼", "消失",       TONE.yellow},
-    {"必杀","rival", TONE.red,     "百媚生",   "60级 · 盗贼", "影遁",       TONE.red},
-    {"队友杀","matekill",TONE.green,"冰环专家","",           "被 華公子 击杀",TONE.green},
-    {"队友死","matedeath",TONE.orange,"狂怒战神","",          "击杀了 華公子", TONE.orange},
-  }
-  local btnW = 52
-  local btnGap = 3
-  for j, tk in ipairs(testKinds) do
-    local label, kind, tone, title, hi, sub, nColor = tk[1], tk[2], tk[3], tk[4], tk[5], tk[6], tk[7]
-    local btn = CreateFrame("Button", nil, testRow)
-    btn:SetSize(btnW, 26)
-    btn:SetPoint("LEFT", 42 + (j - 1) * (btnW + btnGap), 0)
-    btn.bg = createTexture(btn, "BACKGROUND", C.cell)
-    btn.bg:SetAllPoints()
-    btn.text = createFont(btn, 11, C.text2, "", "medium")
-    btn.text:SetPoint("CENTER")
-    btn.text:SetText(label)
-    btn:SetScript("OnEnter", function(self) self.bg:SetVertexColor(rgba(C.cellHi)); setColor(self.text, C.text) end)
-    btn:SetScript("OnLeave", function(self) self.bg:SetVertexColor(rgba(C.cell)); setColor(self.text, C.text2) end)
-    btn:SetScript("OnClick", function()
-      local now = GetTime()
-      if self._lastTestToast and now - self._lastTestToast < 0.5 then return end
-      self._lastTestToast = now
-      TN:PushToast(kind, title, hi, sub, nColor, true)
-    end)
-  end
-  y = y - 44
   addDivider()
 
   -- ── 数据管理 ──

@@ -161,6 +161,7 @@ function Widgets.savePosition(frame, key)
     TN.db.profile.hud.point = point or "TOPLEFT"
     TN.db.profile.hud.x = math.floor(x + 0.5)
     TN.db.profile.hud.y = math.floor(y + 0.5)
+    TN.db.profile.hud.w = frame:GetWidth()
     return
   end
   local point, _, _, x, y = frame:GetPoint(1)
@@ -172,22 +173,22 @@ end
 function Widgets.makeDraggable(frame, handle, key)
   if key == "hud" then
     frame:SetMovable(true)
-    frame:SetClampedToScreen(true)
-    frame:RegisterForDrag("LeftButton")
-    frame:SetScript("OnDragStart", function()
-      if not TN.db.profile.locked then frame:StartMoving() end
+    handle:SetScript("OnMouseDown", function(_, button)
+      if button ~= "LeftButton" or TN.db.profile.locked then return end
+      frame:StartMoving()
+      frame.isMoving = true
     end)
-    frame:SetScript("OnDragStop", function()
+    handle:SetScript("OnMouseUp", function()
+      if not frame.isMoving then return end
       frame:StopMovingOrSizing()
+      frame.isMoving = false
       local left = frame:GetLeft()
       local top = frame:GetTop()
       if not left or not top then return end
       local parentTop = UIParent:GetTop() or GetScreenHeight()
-      local x = math.floor(left + 0.5)
-      local y = math.floor(top - parentTop + 0.5)
       TN.db.profile.hud.point = "TOPLEFT"
-      TN.db.profile.hud.x = x
-      TN.db.profile.hud.y = y
+      TN.db.profile.hud.x = math.floor(left + 0.5)
+      TN.db.profile.hud.y = math.floor(top - parentTop + 0.5)
     end)
     return
   end

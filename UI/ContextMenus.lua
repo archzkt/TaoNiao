@@ -36,8 +36,7 @@ function TN:AddEnemyToKOS(enemy)
     lv = enemy.level or "??",
     guild = enemy.guild or "",
     crime = "见之必杀",
-    win = 0, loss = 0,
-    last = date and date("%H:%M") or "00:00",
+    last = time(),
     zone = GetZoneText and (GetZoneText() or "未知区域") or "未知区域",
     tone = C.red,
   })
@@ -457,15 +456,13 @@ function TN:AddManualKOS(name, cls, crime)
     end
   end
   local mu = (self.db.char.matchups or {})[name]
-  local last = date and date("%H:%M") or "00:00"
+  local last = time()
   table.insert(rows, {
     name = name,
     cls = cls ~= "" and cls or "未知",
     lv = (mu and mu.lv) or "??",
     crime = crime,
-    win = (mu and mu.win) or 0,
-    loss = (mu and mu.loss) or 0,
-    last = last,
+    last = time(),
     zone = GetZoneText and (GetZoneText() or "未知区域") or "未知区域",
     tone = C.red,
   })

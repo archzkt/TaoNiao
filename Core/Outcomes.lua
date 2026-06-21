@@ -31,17 +31,12 @@ function TN:RecordEnemyOutcome(guid, won, combatLogName)
   end
   if not name or name == "" then return end
   local ch = self.db and self.db.char
-  -- 同步写回 KOS 行（持久化）
+  -- KOS 自身不存储胜负，展示时从 matchups 动态取
   if name and self.GetDetailKOSData then
+    local shortName = name:match("^([^%-]+)")
     for _, row in ipairs(self:GetDetailKOSData()) do
-      if row.name == name then
-    row.last = time and time() or 0
-    -- 胜负取自 matchups，保持一致
-    local mu = ch and ch.matchups and ch.matchups[name]
-    if mu then
-      row.win = mu.win or 0
-      row.loss = mu.loss or 0
-    end
+      if row.name == name or (shortName and row.name == shortName) then
+        row.last = time and time() or 0
         break
       end
     end

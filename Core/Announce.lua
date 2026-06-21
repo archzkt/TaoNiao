@@ -214,9 +214,7 @@ function TN:AnnounceEnemy(enemy)
   if not enemy then return end
   local p = self.db and self.db.profile
   if not p or p.autoAnnounce == false then return end
-  -- 乘坐飞行路线时关闭通报（对齐 Spy StopAlertsOnTaxi）
   if p.stopAlertsOnTaxi ~= false and UnitOnTaxi and UnitOnTaxi("player") then return end
-  -- 自动通报频道选择
   local ch = p.autoAnnounceChannel or "AUTO"
   if ch == "AUTO" then
     if IsInRaid and IsInRaid() then ch = "RAID"
