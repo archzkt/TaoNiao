@@ -229,7 +229,7 @@ local function createPhaseRow(parent, phaseDB, y)
     if not isConfigured() then
       GameTooltip:SetText(missingText(), C.yellow[1], C.yellow[2], C.yellow[3], C.yellow[4], true)
     else
-      GameTooltip:SetText(phaseDB.enabled and "已启用（点击禁用）" or "已禁用（点击启用）", C.text[1], C.text[2], C.text[3], C.text[4], true)
+      GameTooltip:SetText(phaseDB.enabled and "已加入快捷菜单（点击移除）" or "未加入（点击加入）", C.text[1], C.text[2], C.text[3], C.text[4], true)
     end
     GameTooltip:Show()
   end)
