@@ -456,6 +456,14 @@ function TN:RenderDetailSettings()
   y = y - 4
   addDivider()
 
+  -- ── 音效 ──
+  sectionLabel("音效")
+  local snd = p.sound or {}
+  createToggle("启用音效", function() return snd.enabled ~= false end, function(v) snd.enabled = v end)
+  createToggle("仅高危发声", function() return snd.onlyKOS == true end, function(v) snd.onlyKOS = v end)
+  y = y - 4
+  addDivider()
+
   -- ── 弹窗提醒 ──
   sectionLabel("弹窗提醒")
   -- Toast 不透明度
