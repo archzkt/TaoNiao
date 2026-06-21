@@ -312,20 +312,29 @@ function TN:RenderDetailPhase()
 end
 
 -- 聊天过滤器：检测 [TaoNiao Phase: xxx] 转为可点击超链接
+-- 延迟注册，等 chat frame 就绪
 local phaseFilter = function(_, event, msg, ...)
-  local newMsg = msg:gsub("%[TaoNiao Phase: ([^%]]+)%] (%S+)", function(name, encoded)
-    return "|Htaoniaophase:" .. encoded .. "|h|cff34c6e8[位面配置:" .. name .. "]|h|r"
-  end)
-  if newMsg ~= msg then return false, newMsg, ... end
+  local name, encoded = msg:match("%[TaoNiao Phase: ([^%]]+)%] (%S+)")
+  if name and encoded then
+    local link = "|Htaoniaophase:" .. encoded .. "|h|cff34c6e8[位面配置:" .. name .. "]|h|r"
+    local newMsg = msg:gsub("%[TaoNiao Phase: [^%]]+%] %S+", link, 1)
+    return false, newMsg, ...
+  end
 end
-ChatFrame_AddMessageEventFilter("CHAT_MSG_PARTY", phaseFilter)
-ChatFrame_AddMessageEventFilter("CHAT_MSG_RAID", phaseFilter)
-ChatFrame_AddMessageEventFilter("CHAT_MSG_GUILD", phaseFilter)
-ChatFrame_AddMessageEventFilter("CHAT_MSG_WHISPER", phaseFilter)
-ChatFrame_AddMessageEventFilter("CHAT_MSG_CHANNEL", phaseFilter)
-ChatFrame_AddMessageEventFilter("CHAT_MSG_SAY", phaseFilter)
-ChatFrame_AddMessageEventFilter("CHAT_MSG_INSTANCE_CHAT", phaseFilter)
-ChatFrame_AddMessageEventFilter("CHAT_MSG_WHISPER_INFORM", phaseFilter)
+local phaseFilterFrame = CreateFrame("Frame")
+phaseFilterFrame:RegisterEvent("ADDON_LOADED")
+phaseFilterFrame:SetScript("OnEvent", function()
+  ChatFrame_AddMessageEventFilter("CHAT_MSG_PARTY", phaseFilter)
+  ChatFrame_AddMessageEventFilter("CHAT_MSG_RAID", phaseFilter)
+  ChatFrame_AddMessageEventFilter("CHAT_MSG_GUILD", phaseFilter)
+  ChatFrame_AddMessageEventFilter("CHAT_MSG_WHISPER", phaseFilter)
+  ChatFrame_AddMessageEventFilter("CHAT_MSG_CHANNEL", phaseFilter)
+  ChatFrame_AddMessageEventFilter("CHAT_MSG_SAY", phaseFilter)
+  ChatFrame_AddMessageEventFilter("CHAT_MSG_YELL", phaseFilter)
+  ChatFrame_AddMessageEventFilter("CHAT_MSG_INSTANCE_CHAT", phaseFilter)
+  ChatFrame_AddMessageEventFilter("CHAT_MSG_WHISPER_INFORM", phaseFilter)
+  phaseFilterFrame:UnregisterEvent("ADDON_LOADED")
+end)
 
 -- 超链接点击处理（hooksecurefunc 链式 hook，不覆盖其他 addon）
 hooksecurefunc(ItemRefTooltip, "SetHyperlink", function(self, link, ...)
