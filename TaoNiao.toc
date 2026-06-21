@@ -1,0 +1,56 @@
+## Interface: 11508
+## Title: TaoNiao
+## Title-zhCN: 掏鸟开放世界PVP助手
+## Notes: World PvP awareness HUD with nearby enemy list.
+## Notes-zhCN: 魔兽永久60野外 PvP 常驻控制面板与附近敌人列表。
+## Version: 0.3.0
+## Author: wwzkt
+## X-Email: 102907011@qq.com
+## X-Credits: NotoSansSC / Rajdhani fonts (SIL Open Font License)
+## SavedVariables: TaoNiaoDB
+## SavedVariablesPerCharacter: TaoNiaoCharDB
+
+# vendored 依赖库（独立安装，无需 !!!Libs）
+Libs/embeds.xml
+
+# addon 实例（必须最先）
+Init.lua
+
+# 配置数据（纯数据，无依赖）
+Config/Constants.lua
+Config/Defaults.lua
+
+# 主题（颜色/字体/布局）
+UI/Theme.lua
+
+# UI 构造函数（依赖 Theme）
+UI/Widgets.lua
+UI/DetailWidgets.lua
+
+# 业务代码（load order: Core 模块 → Core 生命周期 → UI）
+Core/PlayerTracker.lua
+Core/LayerDetector.lua
+Core/LayerComm.lua
+Core/SpyComm.lua
+Core/TeamComm.lua
+Core/Outcomes.lua
+Core/Threat.lua
+Core/Stats.lua
+Core/Toasts.lua
+Core/Announce.lua
+Core.lua
+UI/ContextMenus.lua
+UI/Menus.lua
+UI/Team.lua
+UI/ToastStack.lua
+UI/EnemyList.lua
+UI/Stat.lua
+UI/Action.lua
+UI/DetailData.lua
+UI/ForceZone.lua
+UI/HUD.lua
+UI/DetailRecords.lua
+UI/DetailKOS.lua
+UI/DetailPhase.lua
+UI/DetailTeam.lua
+UI/DetailWindow.lua

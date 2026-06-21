@@ -1,0 +1,13 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+..\FrameXML\UI.xsd">
+	<!-- 依赖库（vendored，独立安装）。加载顺序严格按依赖关系 -->
+	<Script file="Libs\LibStub\LibStub.lua"/>
+	<Script file="Libs\Ace3\CallbackHandler-1.0.lua"/>
+	<Script file="Libs\Ace3\AceAddon-3.0.lua"/>
+	<Script file="Libs\Ace3\AceEvent-3.0.lua"/>
+	<Script file="Libs\Ace3\AceTimer-3.0.lua"/>
+	<Script file="Libs\Ace3\AceDB-3.0.lua"/>
+	<Script file="Libs\Ace3\AceConsole-3.0.lua"/>
+	<Script file="Libs\LibDeflate-1.0\LibDeflate.lua"/>
+	<Script file="Libs\LibSerialize-1.0\LibSerialize.lua"/>
+</Ui>
