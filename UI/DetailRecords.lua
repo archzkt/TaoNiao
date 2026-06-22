@@ -185,7 +185,8 @@ function TN:CreateDetailBattleRow(parent, index, data)
       else
         GameTooltip:AddLine("胜: 0  负: 1", C.text[1], C.text[2], C.text[3])
       end
-      GameTooltip:AddLine((self.data.t or "") .. " 在 " .. (self.data.zone or "未知区域") .. " 遇到", C.text3[1], C.text3[2], C.text3[3])
+      local tt = (self.data.ts and self.data.ts > 0 and date) and date("%H:%M", self.data.ts) or "00:00"
+      GameTooltip:AddLine(tt .. " 在 " .. (self.data.zone or "未知区域") .. " 遇到", C.text3[1], C.text3[2], C.text3[3])
       GameTooltip:Show()
     end
   end)
@@ -217,18 +218,6 @@ function TN:UpdateDetailBattleList()
   if not detail then return end
   local query = detail.battleSearch and detail.battleSearch:GetText() or ""
   local allData = self:GetBattleLog()
-  -- 今日tab只显示今日记录
-  if self.detailRecordTab == "today" then
-    local startOfToday
-    if date and time then local d = date("*t"); d.hour = 0; d.min = 0; d.sec = 0; startOfToday = time(d) end
-    if startOfToday then
-      local filtered = {}
-      for _, d in ipairs(allData) do
-        if (d.ts or 0) >= startOfToday then filtered[#filtered + 1] = d end
-      end
-      allData = filtered
-    end
-  end
   if query ~= "" then
     local filtered = {}
     for _, d in ipairs(allData) do
@@ -319,17 +308,13 @@ function TN:RenderDetailRecords()
   local todayKills = stats.kills or 0
   local todayDeaths = stats.deaths or 0
   local todayPlayers = 0
-  local startOfToday
-  if date and time then local d = date("*t"); d.hour = 0; d.min = 0; d.sec = 0; startOfToday = time(d) end
   local log = self:GetBattleLog()
-  if startOfToday then
-    local seen = {}
-    for _, r in ipairs(log) do
-      if (r.ts or 0) >= startOfToday and r.name and not seen[r.name] then
-        seen[r.name] = true; todayPlayers = todayPlayers + 1
-      end
+  local seen = {}
+  for _, r in ipairs(log) do
+    if r.name and not seen[r.name] then
+      seen[r.name] = true; todayPlayers = todayPlayers + 1
     end
-  else todayPlayers = stats.enemyTotal or 0 end
+  end
   local honorKills = 0
   if GetPVPSessionStats then honorKills = (select(1, GetPVPSessionStats())) or 0 end
   local totalBattles = todayKills + todayDeaths
@@ -435,7 +420,7 @@ function TN:RenderDetailRecords()
   end
   local function refreshBattle()
     if not scroll then return end
-    local data = scroll._data or battleLog
+    local data = scroll._data or {}
     local offset = scroll:GetVerticalScroll() or 0
     local rowH = 36
     local firstIdx = math.floor(offset / rowH) + 1
@@ -457,7 +442,7 @@ function TN:RenderDetailRecords()
         end
         row.data = d
         local resultColor = d.result == "胜" and C.green or C.red
-        row.tCol:SetText(d.t or "")
+        row.tCol:SetText((d.ts and d.ts > 0 and date) and date("%H:%M", d.ts) or "00:00")
         row.resCol:SetText(d.result or "")
         setColor(row.resCol, resultColor)
         row.nameCol:SetText(d.name or "")
@@ -477,7 +462,7 @@ function TN:RenderDetailRecords()
     end
   end
   scroll._refresh = refreshBattle
-  scroll._data = battleLog
+  scroll._data = {}
   scroll:SetScript("OnVerticalScroll", function(self)
     TN:UpdateDetailScrollThumb(self)
     if self._refresh then self._refresh() end
@@ -488,11 +473,10 @@ function TN:RenderDetailRecords()
     if self._refresh then self._refresh() end
   end)
   self:UpdateDetailScrollThumb(scroll)
-  refreshBattle()
   detail.battleFoot = createFont(card, 12, C.text3)
   detail.battleFoot:SetPoint("BOTTOMRIGHT", -18, 18)
   detail.battleFoot:SetJustifyH("RIGHT")
-  detail.battleFoot:SetText("共 " .. tostring(#battleLog) .. " 条记录，最多500条")
+  detail.battleFoot:SetText("共 0 条记录，最多500条")
 
   local historyStats = {}
   local historyStatData = self:GetHistoryStats()

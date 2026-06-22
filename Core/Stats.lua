@@ -14,6 +14,16 @@ function TN:RollDaily()
     self.db.char.todayDate = today
     self.db.char.killsToday = 0
     self.db.char.deathsToday = 0
+    -- 清理 battleLog 中昨日及更早的战斗记录
+    local log = self.db.char.battleLog
+    if log and date then
+      local todayStr = date("%Y%m%d")
+      for i = #log, 1, -1 do
+        if not log[i].ts or log[i].ts <= 0 or date("%Y%m%d", log[i].ts) ~= todayStr then
+          table.remove(log, i)
+        end
+      end
+    end
   end
 end
 

@@ -51,7 +51,6 @@ function TN:RecordEnemyOutcome(guid, won, combatLogName)
   -- 战斗明细持久化（最新插到最前，上限 500 条）
   if ch and ch.battleLog then
     table.insert(ch.battleLog, 1, {
-      t = date and date("%H:%M") or "00:00",
       result = won and "胜" or "负",
       name = name,
       cls = (self.classInfo[classFile] and self.classInfo[classFile].name) or classFile,

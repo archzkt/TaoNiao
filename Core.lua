@@ -80,6 +80,16 @@ function TN:OnInitialize()
   self:EnsureProfileTables()
   -- 强制把角色隔离的嵌套表实化到 char
   self:EnsureCharTables()
+  -- 加载时清理非今日的战斗记录（兜底，避免 epoch 计算在任何环节不一致）
+  if self.db.char.battleLog and date then
+    local todayStr = date("%Y%m%d")
+    for i = #self.db.char.battleLog, 1, -1 do
+      local ts = self.db.char.battleLog[i].ts
+      if not ts or ts <= 0 or date("%Y%m%d", ts) ~= todayStr then
+        table.remove(self.db.char.battleLog, i)
+      end
+    end
+  end
   self.enemies = {}
   self.enemyOrder = {}
   self.enemiesByName = {}

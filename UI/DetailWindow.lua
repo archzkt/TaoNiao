@@ -594,12 +594,11 @@ function TN:RenderDetailSettings()
     local ch = self.db.char
     if ch then ch.killsToday = 0; ch.deathsToday = 0 end
     -- 删除今日战斗记录
-    local bl = chr.battleLog or {}
-    local startOfToday
-    if date and time then local d = date("*t"); d.hour = 0; d.min = 0; d.sec = 0; startOfToday = time(d) end
-    if startOfToday then
+    local bl = ch.battleLog or {}
+    local todayStr = date and date("%Y%m%d")
+    if todayStr then
       for i = #bl, 1, -1 do
-        if (bl[i].ts or 0) >= startOfToday then table.remove(bl, i) end
+        if bl[i].ts and bl[i].ts > 0 and date("%Y%m%d", bl[i].ts) == todayStr then table.remove(bl, i) end
       end
     end
     self:Print("已清空今日战绩。")
