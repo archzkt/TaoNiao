@@ -452,7 +452,28 @@ function TN:RenderDetailSettings()
   y = y - 42
   createToggle("仅通报见之必杀", function() return p.onlyAnnounceKoS == true end, function(v) p.onlyAnnounceKoS = v end)
   createToggle("飞行路线禁用", function() return p.stopAlertsOnTaxi ~= false end, function(v) p.stopAlertsOnTaxi = v end)
-  y = y - 4
+  y = y - 10
+  local cdLabel = createFont(content, 12, C.text2, "", "medium")
+  cdLabel:SetPoint("TOPLEFT", 4, y)
+  cdLabel:SetText("重复通报冷却")
+  local function cdText() return ((p.announceCooldown or 15) == 0) and "关" or ((p.announceCooldown or 15) .. "秒") end
+  local cdValue = createFont(content, 15, C.cyan, "", "number")
+  cdValue:SetPoint("LEFT", cdLabel, "RIGHT", 14, 0)
+  cdValue:SetText(cdText())
+  local function adjustCD(delta)
+    local v = math.max(0, math.min(120, (p.announceCooldown or 15) + delta))
+    p.announceCooldown = v
+    cdValue:SetText((v == 0) and "关" or (v .. "秒"))
+  end
+  local cdMinus = createDetailButton(content, "-", 34, function() adjustCD(-5) end)
+  cdMinus:SetPoint("LEFT", cdValue, "RIGHT", 10, 0)
+  local cdPlus = createDetailButton(content, "+", 34, function() adjustCD(5) end)
+  cdPlus:SetPoint("LEFT", cdMinus, "RIGHT", 6, 0)
+  y = y - 30
+  local cdHint = createFont(content, 11, C.text3)
+  cdHint:SetPoint("TOPLEFT", 4, y)
+  cdHint:SetText("同一敌人两次通报最短间隔（0=不限制，最大120秒）")
+  y = y - 20
   addDivider()
 
   -- ── 音效 ──

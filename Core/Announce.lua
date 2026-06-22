@@ -215,6 +215,16 @@ function TN:AnnounceEnemy(enemy)
   local p = self.db and self.db.profile
   if not p or p.autoAnnounce == false then return end
   if p.stopAlertsOnTaxi ~= false and UnitOnTaxi and UnitOnTaxi("player") then return end
+  local name = enemy.name or ""
+  if name == "" then return end
+  -- 短时间同一敌人不重复通报
+  local cooldown = p.announceCooldown or 15
+  if cooldown > 0 then
+    local now = time and time() or 0
+    self._announceCooldown = self._announceCooldown or {}
+    if self._announceCooldown[name] and now - self._announceCooldown[name] < cooldown then return end
+    self._announceCooldown[name] = now
+  end
   local ch = p.autoAnnounceChannel or "AUTO"
   if ch == "AUTO" then
     if IsInRaid and IsInRaid() then ch = "RAID"
@@ -224,8 +234,6 @@ function TN:AnnounceEnemy(enemy)
   elseif ch == "RAID" and not (IsInRaid and IsInRaid()) then return
   elseif ch == "GUILD" and not (IsInGuild and IsInGuild()) then return
   end
-  local name = enemy.name or ""
-  if name == "" then return end
   -- KOS 判定
   local isKOS = false
   if self.GetDetailKOSData then

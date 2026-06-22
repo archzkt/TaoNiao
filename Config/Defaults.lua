@@ -33,6 +33,8 @@ local Defaults = {
 		autoAnnounceChannel = "AUTO",
 		-- 仅通报死刑名单成员（对齐 Spy OnlyAnnounceKoS）
 		onlyAnnounceKoS = false,
+		-- 同一敌人重复通报冷却（秒），0=不限制
+		announceCooldown = 15,
 		-- 乘坐飞行路线时关闭通报（对齐 Spy StopAlertsOnTaxi）
 		stopAlertsOnTaxi = true,
 		-- 用户通过位面助手切换后记录的当前位面（游戏无公开 API，仅本地追踪）
