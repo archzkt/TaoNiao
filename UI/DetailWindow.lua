@@ -23,6 +23,7 @@ local createDetailBox = DetailWidgets.createDetailBox
 local createDetailDivider = DetailWidgets.createDetailDivider
 local createDetailHeader = DetailWidgets.createDetailHeader
 local createDetailButton = DetailWidgets.createDetailButton
+local createDetailInput = DetailWidgets.createDetailInput
 local clearDetailMain = DetailWidgets.clearDetailMain
 local addDetailFrame = DetailWidgets.addDetailFrame
 local Layout = Theme.Layout
@@ -456,19 +457,35 @@ function TN:RenderDetailSettings()
   local cdLabel = createFont(content, 12, C.text2, "", "medium")
   cdLabel:SetPoint("TOPLEFT", 4, y)
   cdLabel:SetText("重复通报冷却")
-  local function cdText() return ((p.announceCooldown or 15) == 0) and "关" or ((p.announceCooldown or 15) .. "秒") end
-  local cdValue = createFont(content, 15, C.cyan, "", "number")
-  cdValue:SetPoint("LEFT", cdLabel, "RIGHT", 14, 0)
-  cdValue:SetText(cdText())
-  local function adjustCD(delta)
-    local v = math.max(0, math.min(120, (p.announceCooldown or 15) + delta))
+  local cdInput = createDetailInput(content, 50, "")
+  cdInput:SetPoint("LEFT", cdLabel, "RIGHT", 14, 0)
+  cdInput:SetText(p.announceCooldown == 0 and "" or tostring(p.announceCooldown or 15))
+  local cdHintText = createFont(content, 12, C.text3, "", "medium")
+  cdHintText:SetPoint("LEFT", cdInput, "RIGHT", 6, 0)
+  cdHintText:SetText("秒（0=不限制）")
+  cdInput:SetScript("OnTextChanged", function(self)
+    local text = self:GetText() or ""
+    text = text:gsub("[^%d]", "")
+    if text ~= self:GetText() then self:SetText(text) end
+    setShown(self.placeholder, text == "")
+    local v = tonumber(text)
+    if v and v > 120 then
+      self:SetText("120")
+    end
+  end)
+  cdInput:SetScript("OnEnterPressed", function(self)
+    local v = tonumber(self:GetText()) or (p.announceCooldown or 15)
+    v = math.max(0, math.min(120, v))
     p.announceCooldown = v
-    cdValue:SetText((v == 0) and "关" or (v .. "秒"))
-  end
-  local cdMinus = createDetailButton(content, "-", 34, function() adjustCD(-5) end)
-  cdMinus:SetPoint("LEFT", cdValue, "RIGHT", 10, 0)
-  local cdPlus = createDetailButton(content, "+", 34, function() adjustCD(5) end)
-  cdPlus:SetPoint("LEFT", cdMinus, "RIGHT", 6, 0)
+    self:SetText(v == 0 and "" or tostring(v))
+    self:ClearFocus()
+  end)
+  cdInput:SetScript("OnEditFocusLost", function(self)
+    local v = tonumber(self:GetText()) or (p.announceCooldown or 15)
+    v = math.max(0, math.min(120, v))
+    p.announceCooldown = v
+    self:SetText(v == 0 and "" or tostring(v))
+  end)
   y = y - 30
   local cdHint = createFont(content, 11, C.text3)
   cdHint:SetPoint("TOPLEFT", 4, y)
