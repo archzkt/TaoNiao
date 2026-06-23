@@ -56,9 +56,13 @@ local function createTeamToggle(parent, data, y)
   row.dot:SetPoint("RIGHT", -10, 0)
 
   if data.inputKey then
-    row.input = createDetailInput(row, 180, db[data.inputKey] or data.inputPlaceholder or "")
+    local savedText = db[data.inputKey]
+    row.input = createDetailInput(row, 180, data.inputPlaceholder or "")
     row.input:SetPoint("RIGHT", row.dot, "LEFT", -8, 0)
     row.input:SetHeight(24)
+    if savedText and savedText ~= "" then
+      row.input:SetText(savedText)
+    end
     row.input:SetScript("OnTextChanged", function(self)
       local text = self:GetText() or ""
       setShown(self.placeholder, text == "")
@@ -77,7 +81,10 @@ local function createTeamToggle(parent, data, y)
   end)
 
   row:SetScript("OnClick", function()
-    if row.input and row.input:HasFocus() then return end
+    if row.input and row.input:HasFocus() then
+      row.input:ClearFocus()
+      return
+    end
     local teamDB = TN.db and TN.db.profile and TN.db.profile.team
     if not teamDB then return end
     teamDB[data.key] = not teamDB[data.key]
@@ -202,12 +209,14 @@ function TN:RenderDetailTeam()
 
   local announceLabel = createFont(content, 11, C.text3, "", "regular")
   announceLabel:SetPoint("TOPLEFT", 16, y)
-  announceLabel:SetText("解散通告（留空则不发送）")
+  announceLabel:SetText("解散通告")
   y = y - 18
-  local announceInput = createDetailInput(content, innerW, teamDB.disbandMessage or "队伍即将解散，感谢各位！")
+  local announceInput = createDetailInput(content, innerW, "留空使用默认：队伍即将解散，感谢各位！")
   announceInput:SetPoint("TOPLEFT", 14, y)
   announceInput:SetPoint("TOPRIGHT", -14, y)
   announceInput:SetHeight(24)
+  local disbandMsg = teamDB.disbandMessage
+  announceInput:SetText(disbandMsg and disbandMsg ~= "" and disbandMsg or "队伍即将解散，感谢各位！")
   announceInput:SetScript("OnTextChanged", function(self)
     local text = self:GetText() or ""
     setShown(self.placeholder, text == "")

@@ -145,6 +145,9 @@ function TN:PlayerEnteringWorld()
 end
 
 function TN:OnGroupRosterUpdate()
+  local now = GetTime()
+  if self._lastGroupUpdate and now - self._lastGroupUpdate < 0.5 then return end
+  self._lastGroupUpdate = now
   self:ClearLayer()
   self:MarkDirty()
   self:OnTeamEvent("GROUP_ROSTER_UPDATE")

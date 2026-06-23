@@ -64,8 +64,8 @@ function TN:TeamToggleChanged(key, value)
     self:Print(value and "新进队自动给A 已开启" or "新进队自动给A 已关闭")
   elseif key == "autoFreeLoot" then
     self:Print(value and "自动自由拾取 已开启" or "自动自由拾取 已关闭")
-    if value and IsInGroup() then
-      SetLootMethod("free")
+    if value and IsInGroup() and SetLootMethod then
+      SetLootMethod("freeforall")
     end
   end
 end
@@ -99,11 +99,25 @@ function TN:TeamSaveMembers()
   if not teamDB then return end
   local saved = teamDB.savedMembers or {}
   if #saved > 0 then
+    -- 已过期直接覆盖，不弹确认
+    local expireMin = teamDB.restoreExpire or 30
+    local expired = false
+    if expireMin > 0 and teamDB.savedAt and time then
+      expired = (time() - teamDB.savedAt) > expireMin * 60
+    end
+    if expired then
+      self:DoSaveMembers()
+      return
+    end
     StaticPopupDialogs["TAONIAO_CONFIRM_OVERWRITE"] = {
       text = "已有保存的 " .. #saved .. " 名队友，是否覆盖？",
       button1 = "覆盖",
       button2 = "取消",
-      OnAccept = function() TN:DoSaveMembers() end,
+      OnAccept = function(self)
+        self:Hide()
+        local ok, err = pcall(TN.DoSaveMembers, TN)
+        if not ok then TN:Print("保存队伍出错: " .. tostring(err)) end
+      end,
       timeout = 0,
       whileDead = true,
       hideOnEscape = true,
@@ -118,22 +132,31 @@ function TN:DoSaveMembers()
   local teamDB = self.db and self.db.profile and self.db.profile.team
   if not teamDB then return end
   local members = {}
+  local seen = {}
   if IsInRaid() then
     for i = 1, GetNumGroupMembers() do
       local name = GetRaidRosterInfo(i)
-      if name and name ~= UnitName("player") then
+      if name and name ~= UnitName("player") and not seen[name] then
+        seen[name] = true
         members[#members + 1] = name
       end
     end
   elseif IsInGroup() then
     for i = 1, GetNumGroupMembers() - 1 do
       local name = UnitName("party" .. i)
-      if name then members[#members + 1] = name end
+      if name and not seen[name] then
+        seen[name] = true
+        members[#members + 1] = name
+      end
     end
   end
   teamDB.savedMembers = members
   teamDB.savedAt = time and time() or nil
   self:Print("已保存 " .. #members .. " 名队友")
+  local ch = IsInRaid() and "RAID" or (IsInGroup() and "PARTY")
+  if ch then
+    SendChatMessage("[TaoNiao] 团队已保存 - " .. (self.playerName or UnitName("player")), ch)
+  end
   -- 刷新团队助手页（清除缓存后重新渲染，避免 clearDetailMain 后 Show 不恢复）
   if self.detail and self.detail.teamFrame then
     self.detail.teamFrame.frame = nil
@@ -171,12 +194,102 @@ function TN:TeamRestoreMembers()
       return
     end
   end
-  local invited = 0
-  for _, name in ipairs(members) do
-    InviteUnit(name)
-    invited = invited + 1
+  local inGroup = {}
+  if IsInRaid() then
+    for i = 1, GetNumGroupMembers() do
+      local name = GetRaidRosterInfo(i)
+      if name then inGroup[name] = true end
+    end
+  elseif IsInGroup() then
+    for i = 1, GetNumGroupMembers() do
+      local name = UnitName("party" .. i)
+      if name then inGroup[name] = true end
+    end
+    inGroup[UnitName("player")] = true
+  else
+    inGroup[UnitName("player")] = true
   end
-  self:Print("正在邀请 " .. invited .. " 名记忆队友")
+  -- ── 收集需要邀请的人 ──
+  local toInvite = {}
+  for _, name in ipairs(members) do
+    if not inGroup[name] then toInvite[#toInvite + 1] = name end
+  end
+  if #toInvite == 0 then
+    self:Print("所有记忆队友已在队伍中")
+    return
+  end
+
+  -- ── 已在团队：全量邀请 ──
+  if IsInRaid() then
+    local cnt = 0
+    for _, name in ipairs(toInvite) do
+      if GetNumGroupMembers() >= 40 then
+        self:Print("团队已满（40人），" .. (#toInvite - cnt) .. " 人未能邀请")
+        break
+      end
+      InviteUnit(name)
+      cnt = cnt + 1
+    end
+    self:Print("正在邀请 " .. cnt .. " 名记忆队友")
+    return
+  end
+
+  -- ── 小队长/单人：分批试探 → 转团 → 全量 ──
+  local isLeader = not IsInGroup() or (UnitIsGroupLeader and UnitIsGroupLeader("player"))
+  self._pendingRestore = {
+    list = toInvite,
+    idx = 0,
+    isLeader = isLeader,
+    groupCount = IsInGroup() and GetNumGroupMembers() or 0,
+  }
+  self:TryRestoreBatch()
+end
+
+function TN:TryRestoreBatch()
+  local pr = self._pendingRestore
+  if not pr then return end
+  -- 如果已经进入团队，全量邀请剩余
+  if IsInRaid() then
+    local list = pr.list
+    self:CancelTimer("TryRestoreBatch", true)
+    self._pendingRestore = nil
+    local inGroup = {}
+    for i = 1, GetNumGroupMembers() do
+      local name = GetRaidRosterInfo(i)
+      if name then inGroup[name] = true end
+    end
+    local cnt = 0
+    for _, name in ipairs(list) do
+      if not inGroup[name] then
+        if GetNumGroupMembers() >= 40 then
+          self:Print("团队已满（40人），" .. (#list - cnt) .. " 人未能邀请")
+          break
+        end
+        InviteUnit(name)
+        inGroup[name] = true
+        cnt = cnt + 1
+      end
+    end
+    if cnt > 0 then self:Print("已继续邀请 " .. cnt .. " 名记忆队友") end
+    return
+  end
+
+  -- 当前批次邀请（每次最多 4 人）
+  local batchSize = 4
+  local start = pr.idx + 1
+  local finish = math.min(#pr.list, pr.idx + batchSize)
+  if start > #pr.list then
+    self:Print("所有记忆队友均已发出邀请")
+    self._pendingRestore = nil
+    return
+  end
+  for i = start, finish do
+    InviteUnit(pr.list[i])
+  end
+  pr.idx = finish
+  self:Print("第 " .. math.ceil(finish / batchSize) .. " 批：已邀请 " .. pr.list[start] .. " 等 " .. (finish - start + 1) .. " 人（等待回应...）")
+  -- 10 秒后检查下一批
+  self:ScheduleTimer("TryRestoreBatch", 10)
 end
 
 function TN:TeamClearSaved()
@@ -191,17 +304,21 @@ function TN:TeamClearSaved()
     text = "|cffff4d4f确定要清除 " .. #members .. " 名记忆队友吗？|r|n此操作不可撤销。",
     button1 = "清除",
     button2 = "取消",
-    OnAccept = function()
-      local tDB = TN.db and TN.db.profile and TN.db.profile.team
-      if tDB then
-        tDB.savedMembers = {}
-        tDB.savedAt = nil
-      end
-      if TN.detail and TN.detail.teamFrame then
-        TN.detail.teamFrame.frame = nil
-      end
-      TN:RenderDetailTeam()
-      TN:Print("|cffff4d4f已清除所有记忆队友。|r")
+    OnAccept = function(self)
+      self:Hide()
+      local ok, err = pcall(function()
+        local tDB = TN.db and TN.db.profile and TN.db.profile.team
+        if tDB then
+          tDB.savedMembers = {}
+          tDB.savedAt = nil
+        end
+        if TN.detail and TN.detail.teamFrame then
+          TN.detail.teamFrame.frame = nil
+        end
+        TN:RenderDetailTeam()
+        TN:Print("|cffff4d4f已清除所有记忆队友。|r")
+      end)
+      if not ok then TN:Print("清除记忆出错: " .. tostring(err)) end
     end,
     timeout = 0,
     whileDead = true,
@@ -221,6 +338,7 @@ function TN:TeamDisband()
       button1 = "继续解散",
       button2 = "取消",
       OnAccept = function() TN:DoDisband() end,
+      OnCancel = function() StaticPopup_Hide("TAONIAO_CONFIRM_DISBAND_NOSAVE") end,
       timeout = 0, whileDead = true, hideOnEscape = true,
     }
     StaticPopup_Show("TAONIAO_CONFIRM_DISBAND_NOSAVE")
@@ -242,6 +360,7 @@ function TN:TeamDisband()
     button1 = "解散",
     button2 = "取消",
     OnAccept = function() TN:DoDisband() end,
+    OnCancel = function() StaticPopup_Hide("TAONIAO_CONFIRM_DISBAND") end,
     timeout = 0, whileDead = true, hideOnEscape = true,
   }
   StaticPopup_Show("TAONIAO_CONFIRM_DISBAND")
@@ -250,13 +369,15 @@ end
 function TN:DoDisband()
   local teamDB = self.db and self.db.profile and self.db.profile.team
   if IsInGroup() then
-    local msg = teamDB and (teamDB.disbandMessage or "")
-    msg = msg:match("^%s*$") and "" or msg
-    if msg ~= "" then
-      local channel = IsInRaid() and "RAID" or "PARTY"
-      SendChatMessage(msg, channel)
-    end
+    local msg = teamDB and teamDB.disbandMessage
+    if not msg or msg:match("^%s*$") then msg = "队伍即将解散，感谢各位！" end
+    local channel = IsInRaid() and "RAID" or "PARTY"
+    SendChatMessage(msg, channel)
   end
+  self:ScheduleTimer("DoKickAll", 3)
+end
+
+function TN:DoKickAll()
   if IsInRaid() then
     for i = 1, GetNumGroupMembers() do
       local name = GetRaidRosterInfo(i)
@@ -271,6 +392,7 @@ function TN:DoDisband()
     end
   end
   self:Print("队伍已解散")
+  if IsInGroup() then LeaveParty() end
 end
 
 -- ── 团队自动化事件处理 ──
@@ -287,20 +409,18 @@ function TN:OnTeamEvent(event, ...)
 
     if event == "CHAT_MSG_WHISPER" and teamDB.autoInvite then
       local msg, sender = args[1], args[2]
-      local keywords = teamDB.inviteKeyword or "加 1 进组"
-      for kw in keywords:gmatch("%S+") do
-        if msg:lower():find(kw:lower()) then
-          if not IsInGroup() or (IsInGroup() and GetNumGroupMembers() < (IsInRaid() and 40 or 5)) then
-            InviteUnit(sender)
-          end
-          break
+      local kw = (teamDB.inviteKeyword or "加 1 进组"):lower()
+      if msg:lower():find(kw, 1, true) then
+        if not IsInGroup() or (IsInGroup() and GetNumGroupMembers() < (IsInRaid() and 40 or 5)) then
+          InviteUnit(sender)
         end
       end
     elseif event == "GROUP_ROSTER_UPDATE" then
-      if teamDB.autoConvertRaid and IsInGroup() and not IsInRaid() and GetNumGroupMembers() >= 5 then
+      local isLeader = UnitIsGroupLeader and UnitIsGroupLeader("player")
+      if teamDB.autoConvertRaid and isLeader and IsInGroup() and not IsInRaid() and GetNumGroupMembers() >= 5 then
         ConvertToRaid()
       end
-      if teamDB.autoPromote and IsInRaid() then
+      if teamDB.autoPromote and isLeader and IsInRaid() then
         for i = 1, GetNumGroupMembers() do
           local name, rank = GetRaidRosterInfo(i)
           if name and rank == 0 then
@@ -308,8 +428,23 @@ function TN:OnTeamEvent(event, ...)
           end
         end
       end
-      if teamDB.autoFreeLoot and IsInGroup() then
-        SetLootMethod("free")
+      if teamDB.autoFreeLoot and isLeader and IsInGroup() and SetLootMethod then
+        SetLootMethod("freeforall")
+      end
+      -- 挂起的恢复任务：感知有人进组 → 转团 → 触发全量邀请
+      if self._pendingRestore then
+        local pr = self._pendingRestore
+        local nowCount = IsInGroup() and GetNumGroupMembers() or 0
+        local prevCount = pr.groupCount or 0
+        if nowCount > prevCount then
+          -- 有人接受了邀请，立即转团（队长）
+          pr.groupCount = nowCount
+          if pr.isLeader and not IsInRaid() then
+            ConvertToRaid()
+          end
+        end
+        -- 如果已在团队，TryRestoreBatch 会直接全量邀请
+        self:TryRestoreBatch()
       end
     end
   end)
